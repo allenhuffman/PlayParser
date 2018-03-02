@@ -201,22 +201,19 @@ char getNextCommand(char **ptr)
  * Check Modifiers
  */
 /*
-  Get command character
   // + - add one
   // - - substract one
   // > - multiply to two
   // < - divited by two
-
-  // Numberic variables do not make much sense to support.
-  // = - variable?
-  // remember start position...
-  // scan to find ';'
-  // lookup variable starting at saved position
-  // use that value
+  // = - variable value (not suppoted; just skip)
+  // number - use that value (skip if >255)
 */
+
+// L9AC0 - JMP L9BAC
 byte checkModifier(char **ptr, byte value)
 {
-  char commandChar;
+  char      commandChar;
+  uint16_t  temp; // MUL A*B = D
   
   if ((ptr != NULL) && (*(*ptr) != '\0'))
   {
@@ -281,23 +278,54 @@ byte checkModifier(char **ptr, byte value)
         do
         {
           commandChar = getNextCommand(ptr);
-          if (commandChar == ';') break;
+          if (commandChar == '\0') break;
           
-        } while( commandChar != '\0' );
+        } while( commandChar != ';' );
         break;
 
-      // Else, check for numeric.
+      // Else, check for numeric string.
       default:
-        if ((commandChar >= '0') && (commandChar <='9'))
+        temp = 0;
+        value = 0;
+        do
         {
-          
-        }
-        Serial.print("Unknown modifier: ");
-        Serial.println(commandChar);
+          // Stop at a non-numeric character.
+          if ( isdigit(commandChar) == 0) // not digit
+          {
+            // Rewind so we end up where we started.
+            ptr--;
+            break;
+          }
+
+          // Base 10. First time it will be 0 * 10.
+          temp = temp * 10;
+          // Convert ASCII number to value.
+          temp = temp + (commandChar - '0');
+
+          if (temp>255)
+          {
+            // In BASIC we would ?FC ERROR.
+            // Skip past numbers.
+            do
+            {
+              commandChar = getNextCommand(ptr);
+              if (commandChar == '\0') break;
+            } while(isdigit(commandChar) != 0); // digit
+
+            // Rewind
+            ptr--;
+            temp = 0;
+            break;
+          }
+          // Get another command byte.
+          commandChar = getNextCommand(ptr);  
+        } while( commandChar != '\0' );
+
+        value = temp;
         break;
     
     } // end of switch( commandChar )
-    
+
   } // end of NULL check
 
   return value;  

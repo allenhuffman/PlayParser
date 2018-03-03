@@ -10,6 +10,7 @@
  
  2018-02-20 0.00 allenh - Project began.
  2018-02-28 0.00 allenh - Initial framework.
+ 2018-03-02 0.00 allenh - More work on PLAY and its options.
  
  -----------------------------------------------------------------------------*/
 #define VERSION "0.00"
@@ -26,7 +27,7 @@
 const byte g_NoteJumpTable[7] =
 {
   /*   A,  B, C, D, E, F, G */
-  /**/10, 12, 1, 3, 5, 6, 7 
+  /**/10, 12, 1, 3, 5, 6, 8 
 };
 
 /*---------------------------------------------------------------------------*/
@@ -45,11 +46,24 @@ byte g_DotVal = 0;  // Dot Value
 
 void setup() {
   // put your setup code here, to run once:
+  char *string;
 
   Serial.begin(9600);
   Serial.println(F("PlayParser Test."));
 
-  play("CDE;F'GAB");
+  string = (char*)"ABCDEFG";
+  Serial.print((unsigned int)string);
+  Serial.print(" - ");
+  Serial.println(string);
+  play(string);
+
+  delay(2000);
+
+  string = (char*)"CDEFGAB";
+  Serial.print((unsigned int)string);
+  Serial.print(" - ");
+  Serial.println(string);
+  play(string);
 
 } // end of setup()
 
@@ -78,24 +92,39 @@ void play(const char *playString)
   // Get pointer to play string.
   commandPtr = (char*)playString;
 
+  //Serial.print("play(");
+  //Serial.print((unsigned int)commandPtr);
+  //Serial.println(")");
+
   done = false;
   do
   {
-    
     // L9A43
     // L9B98
     // * GET NEXT COMMAND - RETURN VALUE IN ACCA
     commandChar = getNextCommand(&commandPtr);
 
+    //Serial.print("parsing ");
+    //Serial.print(commandChar);
+    //Serial.print(": ");
+
+    //Serial.print( (unsigned int)commandPtr);
+    //Serial.print(" = ");
+    //Serial.println( commandChar );
+
+    //Serial.print("switch(");
+    //Serial.print(commandChar);
+    //Serial.println(")");
     switch( commandChar )
     {
       case '\0':
+        Serial.println("done.");
         done = true;
         break;
 
       // 9A4A - ;
       // SUB COMMAND TERMINATED
-      case ':':
+      case ';':
         // IGNORE SEMICOLONS
         break;
         
@@ -209,8 +238,10 @@ void play(const char *playString)
       default:
         // (A-G, 1-12)
         //    A-G
+        note = 0;
         if (commandChar >= 'A' || commandChar <= 'G')
         {
+          //Serial.print("A-G ");
           // Get numeric note value of letter note. (0-11)
           note = g_NoteJumpTable[commandChar - 'A'];
           // note is now 1-12
@@ -221,9 +252,8 @@ void play(const char *playString)
           // Done if there is no more.
           if (commandChar == '\0')
           {
-            value = 0; // ?FC ERROR
+            // Nothing to see after this one is done.
             done = true;
-            break;
           }
 
           //      # - sharp
@@ -237,16 +267,34 @@ void play(const char *playString)
             //      - - flat
             note--;
           }
+          else
+          {
+            //Serial.print("not # + or -: ");
+            //Serial.print(commandChar);
+            // Put it back.
+            //Serial.print("  ptr:");
+            //Serial.print((unsigned int)commandPtr);
+            *(commandPtr--);
+            //Serial.print(" -> ");
+            //Serial.println((unsigned int)commandPtr);
+          }
         }
-        else
+        else // not A-G
         {
+          Serial.println("checking for number");
           // L9BBE - Evaluate decimal expression in command string.
           // Jump to cmp '=' thing in modifier!
           note = checkForVariableOrNumeric(&commandPtr, commandChar);
+          if (note == 0)
+          {
+            value = 0; // ?FC ERROR
+            break;
+          }
         }
         
         // L9B22 - Process note value.
         note--; // Adjust note number, BASIC uses 1-2, internally 0-11
+
         // If not was C (1), and was flat (0), this would make it 255.
         if (note > 11)
         {
@@ -258,8 +306,11 @@ void play(const char *playString)
         /*--------------------------------------------------------*/
         // PROCESS NOTE HERE!
         /*--------------------------------------------------------*/
+        Serial.println(note);
+        PlayNote(note, g_NoteLn);
         
         break;
+        
     } // end switch( commandChar );
 
   } while( done == false );
@@ -281,6 +332,10 @@ void play(const char *playString)
 char getNextCommand(char **ptr)
 {
   char commandChar;
+
+  //Serial.print("getNextCommand(");
+  //Serial.print((unsigned int)*ptr);
+  //Serial.print(") - ");
   
   if (ptr == NULL)
   {
@@ -297,12 +352,15 @@ char getNextCommand(char **ptr)
 
       if ( commandChar == '\0') break;
 
-      if ( commandChar != ' ') break;
-
       // Increment pointer.
       (*ptr)++;
+
+      if ( commandChar != ' ') break;
     }
   }
+
+  //Serial.print(" ... ");
+  //Serial.println((unsigned int)*ptr);
 
   return commandChar;
 }
@@ -393,6 +451,7 @@ byte checkModifier(char **ptr, byte value)
   return value;  
 } // end of checkModifiers()
 
+/*---------------------------------------------------------------------------*/
 
 byte checkForVariableOrNumeric(char **ptr, char commandChar)
 {
@@ -427,7 +486,7 @@ byte checkForVariableOrNumeric(char **ptr, char commandChar)
         if ( isdigit(commandChar) == 0) // not digit
         {
           // Rewind so we end up where we started.
-          ptr--;
+          (*ptr)--;
           break;
         }
   
@@ -447,7 +506,7 @@ byte checkForVariableOrNumeric(char **ptr, char commandChar)
           } while(isdigit(commandChar) != 0); // digit
   
           // Rewind
-          ptr--;
+          (*ptr)--;
           temp = 0;
           break;
         }

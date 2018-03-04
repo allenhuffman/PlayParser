@@ -189,6 +189,7 @@ void play(const char *playString)
   commandPtr = (char*)playString;
 
   done = false;
+  value = 0; // force ?FC ERROR
   do
   {
     // L9A43
@@ -199,6 +200,7 @@ void play(const char *playString)
     switch( commandChar )
     {
       case '\0':
+        value = 1; // no error
         done = true;
         break;
 
@@ -659,6 +661,7 @@ byte checkForVariableOrNumeric(char **ptr, char commandChar)
   
         // Base 10. First time it will be 0 * 10.
         temp = temp * 10;
+        
         // Convert ASCII number to value.
         temp = temp + (commandChar - '0');
 
@@ -679,10 +682,12 @@ byte checkForVariableOrNumeric(char **ptr, char commandChar)
           temp = 0; // ?FC ERROR
           break;
         }
+        
         // Get another command byte.
         commandChar = getNextCommand(ptr);
+        
       } while( commandChar != '\0' );
-  
+
       value = temp;
       break;
   } // end of switch( commandChar )

@@ -1,7 +1,30 @@
-// From https://www.arduino.cc/en/Tutorial/ToneKeyboard?from=Tutorial.Tone3
+/*---------------------------------------------------------------------------*/
+/*
+Arduino tone() command notes and frequenceis, and a simple wrapper function
+to play the specified note.
+*/
+/*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+// DEFINES
+/*---------------------------------------------------------------------------*/
+/*
+ * Connect an 8 ohm speaker between GND and this pin.
+ */
 #define TONE_PIN 8
 
+#if defined(DEBUG)
+#define DEBUG_PRINT(s)    Serial.print(s)
+#define DEBUG_PRINTLN(s)  Serial.println(s)
+#else
+#define DEBUG_PRINT(s)
+#define DEBUG_PRINTLN(s)
+#endif
+
+/*
+ * Notes and Frequencies
+ * From https://www.arduino.cc/en/Tutorial/ToneKeyboard
+ */
 #define NOTE_B0  31
 
 #define NOTE_C1  33
@@ -102,12 +125,16 @@
 #define NOTE_D8  4699
 #define NOTE_DS8 4978
 
+/*---------------------------------------------------------------------------*/
+// GLOBALS
+/*---------------------------------------------------------------------------*/
+
 /*
  * This table contains all the notes the PLAY command could handle.
  * 0 = C3 (O1)
  * 59 = B7 (O5)
  */
-const uint16_t g_ToneTable[] =
+static const uint16_t g_ToneTable[] =
 {
   /*
    * Lowest note Arduino can produce:
@@ -163,17 +190,19 @@ const uint16_t g_ToneTable[] =
 void PlayNote(byte note, unsigned long duration)
 {
   /*
-  Serial.print(F("PlayNote("));
-  Serial.print(note);
-  Serial.print(F(", "));
-  Serial.print(duration);
-  Serial.println(F(")"));
+  DEBUG_PRINT(F(" PlayNote("));
+  DEBUG_PRINT(note);
+  DEBUG_PRINT(F(", "));
+  DEBUG_PRINT(duration);
+  DEBUG_PRINTLN(F(")"));
   */
   
   if (note >= sizeof(g_ToneTable)/sizeof(g_ToneTable[0]))
   {
-    Serial.print(F("Invalid note: "));
-    Serial.println(note);
+    /*
+    DEBUG_PRINT(F("Invalid note: "));
+    DEBUG_PRINTLN(note);
+    */
     return;
   }
 
@@ -193,5 +222,6 @@ void showit()
 }
 */
 
+/*---------------------------------------------------------------------------*/
 // End of TonePlayer
 

@@ -1,10 +1,10 @@
-/*-----------------------------------------------------------------------------
- 
- Simple Line Input routine.
- By Allen C. Huffman (alsplace@pobox.com)
- www.subethasoftware.com
- 
- -----------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/* 
+Simple Line Input routine.
+By Allen C. Huffman (alsplace@pobox.com)
+www.subethasoftware.com
+*/
+/*---------------------------------------------------------------------------*/
 
 #define CR           13
 #define BEL          7

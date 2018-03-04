@@ -19,6 +19,8 @@ TODO:
 * Pause may be slightly off (or the demo song is just wrong).
 * Need a "reset to defaults" command.
 * Add support for PROGMEM strings.
+* Set variable (2-digit name, numeric or string).
+* Use variables to support Xvar$; and =var; 
 
 NOTE
 ----
@@ -93,7 +95,7 @@ we can use them.
 #endif
 
 // 9C5B - Table of numerical note values for letter notes.
-const byte g_NoteJumpTable[7] =
+const byte g_NoteJumpTable[7] PROGMEM =
 {
   /*   A,  B, C, D, E, F, G */
   /**/10, 12, 1, 3, 5, 6, 8 
@@ -165,11 +167,21 @@ void play(const char *playString)
       // CHECK FOR AN EXECUTABLE SUBSTRING
       case 'X':
         // X - sub-string (x$; or xx$;)
+        DEBUG_PRINT(F(" (X")); // not supported
         // process substring
-        DEBUG_PRINT(F(" X "));
-        /***********************************************************/
-        // TODO!
-        /***********************************************************/
+        // Skip until semicolon or end of string.
+        do
+        {
+          commandChar = getNextCommand(&commandPtr);
+          
+          if (commandChar == '\0') break;
+  
+          DEBUG_PRINT(commandChar);
+          
+        } while( commandChar != ';' );
+
+        DEBUG_PRINT(F(")")); // not supported
+        
         break;
 
       // CHECK FOR OTHER COMMANDS
@@ -177,10 +189,10 @@ void play(const char *playString)
       // 9A5C
       case 'O':
         // // ADJUST OCTAVE?
+        DEBUG_PRINT(F(" O"));
         // O - octave (1-5, default 2)
         //    Modifiers
         value = checkModifier(&commandPtr, g_Octave);
-        DEBUG_PRINT(F(" O"));
         if (value >=1 && value <= 5)
         {
           DEBUG_PRINT(value);
@@ -196,9 +208,9 @@ void play(const char *playString)
       // 9a6D
       case 'V':
         //  V - volume (1-31, default 15)
+        DEBUG_PRINT(F(" V"));
         //    Mofifiers
         value = checkModifier(&commandPtr, g_Volume);
-        DEBUG_PRINT(F(" V"));
         if (value >=1 && value <= 31)
         {
           DEBUG_PRINT(value);
@@ -214,9 +226,9 @@ void play(const char *playString)
       // 9a8b
       case 'L':
         //  L - note length
+        DEBUG_PRINT(F(" L"));
         //    Modifiers
         value = checkModifier(&commandPtr, g_NoteLn);
-        DEBUG_PRINT(F(" L"));
         if (value > 0 )
         {
           DEBUG_PRINT(value);
@@ -257,9 +269,9 @@ void play(const char *playString)
       // L9AB2
       case 'T':
         //  T - tempo (1-255, default 2)
+        DEBUG_PRINT(F(" T"));
         //    Modifiers
         value = checkModifier(&commandPtr, g_Tempo);
-        DEBUG_PRINT(F(" T"));
         if (value > 0)
         {
           DEBUG_PRINT(value);
@@ -275,6 +287,8 @@ void play(const char *playString)
       // L9AC3
       case 'P':
         //  P - pause (1-255)
+        DEBUG_PRINT(F(" P"));
+
         commandChar = getNextCommand(&commandPtr);
         // Done if there is no more.
         if (commandChar == '\0')
@@ -283,9 +297,9 @@ void play(const char *playString)
           done = true;
           break;
         }
-        
-        value = checkForVariableOrNumeric(&commandPtr, commandChar);
-        DEBUG_PRINT(F(" P"));
+
+        // since =var; is not supported, we default to note length
+        value = checkForVariableOrNumeric(&commandPtr, commandChar, g_NoteLn);
         if (value > 0)
         {
           DEBUG_PRINT(value);
@@ -336,7 +350,7 @@ void play(const char *playString)
         {
           //DEBUG_PRINT("A-G ");
           // Get numeric note value of letter note. (0-11)
-          note = g_NoteJumpTable[commandChar - 'A'];
+          note = pgm_read_byte_near(&g_NoteJumpTable[commandChar - 'A']);
           // note is now 1-12
 
           DEBUG_PRINT(F(" "));
@@ -374,7 +388,7 @@ void play(const char *playString)
         {
           // L9BBE - Evaluate decimal expression in command string.
           // Jump to cmp '=' thing in modifier!
-          note = checkForVariableOrNumeric(&commandPtr, commandChar);
+          note = checkForVariableOrNumeric(&commandPtr, commandChar, 0);
           if (note == 0)
           {
             value = 0; // ?FC ERROR
@@ -562,7 +576,7 @@ byte checkModifier(char **ptr, byte value)
       // Could be = or number, so we call a separate function since we
       // need this in the note routine as well.
       default:
-        value = checkForVariableOrNumeric(ptr, commandChar);
+        value = checkForVariableOrNumeric(ptr, commandChar, value);
         break;
         
     } // end of switch( commandChar )
@@ -574,9 +588,9 @@ byte checkModifier(char **ptr, byte value)
 
 /*---------------------------------------------------------------------------*/
 
-byte checkForVariableOrNumeric(char **ptr, char commandChar)
+byte checkForVariableOrNumeric(char **ptr, char commandChar, byte value)
 {
-  byte      value = 0;
+  //byte      value = 0;
   uint16_t  temp; // MUL A*B = D
 
   switch( commandChar )
@@ -586,17 +600,22 @@ byte checkForVariableOrNumeric(char **ptr, char commandChar)
     // CHECK FOR VARIABLE EQUATE
     case '=':
       // "=XX;" - value = whatever XX is set to.
+      DEBUG_PRINT(F("(")); // not supported
+      DEBUG_PRINT(commandChar);
       // Skip until semicolon or end of string.
-      DEBUG_PRINT(F("(skip =xx;)"));
       do
       {
         commandChar = getNextCommand(ptr);
         
         if (commandChar == '\0') break;
+
+        DEBUG_PRINT(commandChar);
         
       } while( commandChar != ';' );
+      DEBUG_PRINT(F(")")); // not supported
+      // Leave value unchanged, since we don't support it.
       
-      value = 0; // ?FC ERROR since we do not support this yet.
+      //value = 0; // ?FC ERROR since we do not support this yet.
       break;
   
     // Else, check for numeric string.

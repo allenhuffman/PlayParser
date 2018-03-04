@@ -346,6 +346,19 @@ void play(const char *playString)
         if (value > 0)
         {
           Serial.print(value);
+
+          unsigned long duration;
+          // Create 60hz timing from Tempo and NoteLn (matching CoCo).
+          duration = (256/g_NoteLn/g_Tempo);
+          
+          // Convert to 60/second
+          // tm/60 = ms/1000
+          // ms=(tm/60)*1000
+          // no floating point needed this way
+          // (tm*1000)/60
+          duration = (duration*1000)/60;
+
+          delay(duration);        
         }
         else
         {

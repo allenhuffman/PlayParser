@@ -11,6 +11,7 @@
  2018-02-20 0.00 allenh - Project began.
  2018-02-28 0.00 allenh - Initial framework.
  2018-03-02 0.00 allenh - More work on PLAY and its options.
+ 2018-03-03 0.00 allenh - Most things seem to work now.
 
  NOTE
  ----
@@ -109,14 +110,28 @@ void setup() {
   //PlayNote(60, 1000); // this should error
 
   // Example from the Extended Color BASIC manual.
-
+/*
   play("T5;C;E;F;L1;G;P4;L4;C;E;F;L1;G");
   play("P4;L4;C;E;F;L2;G;E;C;E;L1;D");
   play("P8;L4;E;E;D;L2.;C;L4;C;L2;E");
   play("L4;G;G;G;L1;F;L4;E;F");
   play("L2;G;E;L4;C;L8;D;D+;D;E;G;L4;A;L1;O3;C");
+  delay(1000);
+*/
 
-exit(0);
+  char buffer[80];
+  while(1)
+  {
+    Serial.print(F("PLAY>"));
+    lineInput(buffer, sizeof(buffer));
+    play(buffer);
+  }
+
+  Serial.println(F("Length test:"));
+  play("L1 CDC L2 CDC L4 CDC L8 CDC L16 CDC");
+
+  exit(0);
+
   Serial.println(F("Octave parsing:"));
   play("O1 C O2 C O3 C O4 C O5 C O2");
   delay(1000);
@@ -124,8 +139,6 @@ exit(0);
   Serial.println(F("Numeric notes."));
   play("1;2;3;4;5;6;7;8;9;10;11;12");
   delay(2000);
-
-  exit(0);
 
   Serial.println(F("Normal notes."));
   play("CDEFGAB");
@@ -209,6 +222,9 @@ void play(const char *playString)
         // X - sub-string (x$; or xx$;)
         // process substring
         Serial.print(F(" X "));
+        /***********************************************************/
+        // TODO!
+        /***********************************************************/
         break;
 
       // CHECK FOR OTHER COMMANDS
@@ -219,9 +235,9 @@ void play(const char *playString)
         // O - octave (1-5, default 2)
         //    Modifiers
         value = checkModifier(&commandPtr, g_Octave);
+        Serial.print(F(" O"));
         if (value >=1 && value <= 5)
         {
-          Serial.print(F(" O"));
           Serial.print(value);
           g_Octave = value;
         }
@@ -237,9 +253,9 @@ void play(const char *playString)
         //  V - volume (1-31, default 15)
         //    Mofifiers
         value = checkModifier(&commandPtr, g_Volume);
+        Serial.print(F(" V"));
         if (value >=1 && value <= 31)
         {
-          Serial.print(F(" V"));
           Serial.print(value);
           g_Volume = value;
         }
@@ -255,9 +271,9 @@ void play(const char *playString)
         //  L - note length
         //    Modifiers
         value = checkModifier(&commandPtr, g_NoteLn);
+        Serial.print(F(" L"));
         if (value > 0 )
         {
-          Serial.print(F(" L"));
           Serial.print(value);
           g_NoteLn = value;
         }
@@ -265,6 +281,7 @@ void play(const char *playString)
         {
           value = 0; // ?FC ERROR
           done = true;
+          break;
         }
         //    . - dotted note
         dotVal = 0;
@@ -274,7 +291,7 @@ void play(const char *playString)
           // Done if there is no more.
           if (commandChar == '\0')
           {
-            value = 0; // ?FC ERROR
+            value = 1; // no error
             done = true;
             break;
           }
@@ -297,9 +314,9 @@ void play(const char *playString)
         //  T - tempo (1-255, default 2)
         //    Modifiers
         value = checkModifier(&commandPtr, g_Tempo);
+        Serial.print(F(" T"));
         if (value > 0)
         {
-          Serial.print(F(" T"));
           Serial.print(value);
           g_Tempo = value;
         }
@@ -323,9 +340,9 @@ void play(const char *playString)
         }
         
         value = checkForVariableOrNumeric(&commandPtr, commandChar);
+        Serial.print(F(" P"));
         if (value > 0)
         {
-          Serial.print(F(" P"));
           Serial.print(value);
         }
         else
@@ -341,6 +358,7 @@ void play(const char *playString)
         Serial.print(F(" N"));
         // Get next command character.
         commandChar = getNextCommand(&commandPtr);
+        
         // Done if there is no more.
         if (commandChar == '\0')
         {
@@ -373,6 +391,7 @@ void play(const char *playString)
           if (commandChar == '\0')
           {
             // Nothing to see after this one is done.
+            value = 1; // no error
             done = true;
           }
 
@@ -401,6 +420,7 @@ void play(const char *playString)
           if (note == 0)
           {
             value = 0; // ?FC ERROR
+            done = true;
             break;
           }
           //Serial.print(F(" n"));
@@ -459,7 +479,7 @@ void play(const char *playString)
   if (value == 0)
   {
     Serial.println();
-    Serial.println(F("?FC ERROR"));
+    Serial.print(F("?FC ERROR"));
   }
 
   Serial.println();
@@ -571,7 +591,7 @@ byte checkModifier(char **ptr, byte value)
 
       // DIVIDE BY TWO?
       case '<':
-        if (value > 0)
+        if (value > 1)
         {
           value = value / 2;
         }
@@ -656,7 +676,7 @@ byte checkForVariableOrNumeric(char **ptr, char commandChar)
           (*ptr)--;
           temp = 0;
 */
-          value = 0; // ?FC ERROR since we do not support this yet.
+          temp = 0; // ?FC ERROR
           break;
         }
         // Get another command byte.

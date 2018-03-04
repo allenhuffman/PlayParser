@@ -125,6 +125,8 @@ byte g_Tempo  = DEFAULT_TEMPO;  // Tempo (1-255, default 2)
 /*
  * play()
  */
+//void play(const __FlashStringHelper *playString)
+
 void play(const char *playString)
 {
   char    *commandPtr;
@@ -152,6 +154,7 @@ void play(const char *playString)
     // * GET NEXT COMMAND - RETURN VALUE IN ACCA
     commandChar = getNextCommand(&commandPtr);
 
+    dotVal = 0; // Reset dotted value, just in case.
     switch( commandChar )
     {
       case '\0':
@@ -270,7 +273,7 @@ void play(const char *playString)
           else // Not a dot.
           {
             // Not a dot. Put it back.
-            *(commandPtr--);
+            commandPtr--;
             break;
           }
         }
@@ -402,7 +405,8 @@ void play(const char *playString)
           }
           else
           {
-            *(commandPtr--);
+            // Not a #, + or -. Put it back.
+            commandPtr--;
           }
         }
         else // NOT A-G, check for 1-12

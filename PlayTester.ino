@@ -34,13 +34,17 @@ void loop() {
   //PlayNote(59, 1000);
   //PlayNote(60, 1000); // this should error
 
+  //Serial.println(F("Testing..."));
+  //play(F("C D E F G"));
+
   // Input and Play routine.
   char buffer[80];
   while(1)
   {
     Serial.print(F("PLAY string (or 'bye')>"));
     lineInput(buffer, sizeof(buffer));
-    if (strncmp(buffer, "BYE", 3)==0) break;
+    //if (strncmp(buffer, "BYE", 3)==0) break;
+    if (strncmp_P(buffer, PSTR("BYE"), 3)==0) break;
     play(buffer);
   }
 

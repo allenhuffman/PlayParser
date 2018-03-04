@@ -18,6 +18,7 @@ TODO:
 * Data needs to be moved to PROGMEM.
 * Pause may be slightly off (or the demo song is just wrong).
 * Need a "reset to defaults" command.
+* Add support for PROGMEM strings.
 
 NOTE
 ----

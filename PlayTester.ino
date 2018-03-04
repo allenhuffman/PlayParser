@@ -20,6 +20,7 @@ void setup() {
   Serial.begin(9600);
   Serial.println();
   Serial.println(F("PlayParser Test."));
+  showFreeRam();
 
 } // end of setup()
 
@@ -52,8 +53,9 @@ void loop() {
   play("L2;G;E;L4;C;L8;D;D+;D;E;G;L4;A;L1;O3;C");
   delay(2000);
 
-  // Relative octave jumps: Peter Gunn:
-  // CCDCL>DD+L<CFE
+  // Relative octave jumps:
+  // Peter Gunn: L8 CCDCL>DD+L<CFE
+  // Popeye:     L16 EGGGL<FL>EL<GL>
 /*
 1000 CLS:PRINT@43,"SINFONIA"
 1010 PRINT@73,"BY J.S. BACH"
@@ -104,6 +106,22 @@ void loop() {
   Serial.println(F("Flats."));
   play("CD-DE-EFG-GA-AB-B");
   delay(2000);  
+}
+
+/*---------------------------------------------------------------------------*/
+// Some functions to display free memory, used for testing.
+
+unsigned int freeRam()
+{
+  extern int __heap_start, *__brkval; 
+  int v; 
+  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
+}
+
+void showFreeRam()
+{
+  Serial.print(F("Free RAM: "));
+  Serial.println(freeRam());
 }
 
 /*---------------------------------------------------------------------------*/

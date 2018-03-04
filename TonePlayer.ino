@@ -2,6 +2,8 @@
 /*
 Arduino tone() command notes and frequenceis, and a simple wrapper function
 to play the specified note.
+
+2018-03-03 0.00 allenh - Moving note data to PROGMEM.
 */
 /*---------------------------------------------------------------------------*/
 
@@ -133,8 +135,11 @@ to play the specified note.
  * This table contains all the notes the PLAY command could handle.
  * 0 = C3 (O1)
  * 59 = B7 (O5)
+ * 
+ * It is stored in PROGMEM since it uses 120 bytes (and will use more if
+ * the rest of the notes are added).
  */
-static const uint16_t g_ToneTable[] =
+static const uint16_t g_ToneTable[] PROGMEM =
 {
   /*
    * Lowest note Arduino can produce:
@@ -196,7 +201,6 @@ void PlayNote(byte note, unsigned long duration)
   DEBUG_PRINT(duration);
   DEBUG_PRINTLN(F(")"));
   */
-  
   if (note >= sizeof(g_ToneTable)/sizeof(g_ToneTable[0]))
   {
     /*
@@ -206,7 +210,7 @@ void PlayNote(byte note, unsigned long duration)
     return;
   }
 
-  tone(TONE_PIN, g_ToneTable[note], duration);
+  tone(TONE_PIN, pgm_read_word_near(&g_ToneTable[note]), duration);
 
   delay(duration);
   

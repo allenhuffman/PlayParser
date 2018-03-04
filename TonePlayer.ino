@@ -16,9 +16,9 @@
 #define NOTE_A1  55
 #define NOTE_AS1 58
 #define NOTE_B1  62
-  /*  A,  B, C, D, E, F, G */
-  /* 10, 12, 1, 3, 5, 6, 8 */
 
+/*  A,  B, C, D, E, F, G */
+/* 10, 12, 1, 3, 5, 6, 8 */
 #define NOTE_C2  65 //0
 #define NOTE_CS2 69 //1
 #define NOTE_D2  73 //2
@@ -45,7 +45,7 @@
 #define NOTE_AS3 233
 #define NOTE_B3  247
 
-#define NOTE_C4  262
+#define NOTE_C4  262 // Middle C
 #define NOTE_CS4 277
 #define NOTE_D4  294
 #define NOTE_DS4 311
@@ -102,53 +102,96 @@
 #define NOTE_D8  4699
 #define NOTE_DS8 4978
 
+/*
+ * This table contains all the notes the PLAY command could handle.
+ * 0 = C3 (O1)
+ * 59 = B7 (O5)
+ */
 const uint16_t g_ToneTable[] =
 {
-  //, NOTE_B0,
-  //
+  /*
+   * Lowest note Arduino can produce:
+   */
+  //NOTE_B0,
+  /*
+   * Not supported by PLAY command.
+   */
   //NOTE_C1, NOTE_CS1, NOTE_D1, NOTE_DS1, NOTE_E1, NOTE_F1,
   //NOTE_FS1, NOTE_G1, NOTE_GS1, NOTE_A1, NOTE_AS1, NOTE_B1,
-  //
-  NOTE_C2, NOTE_CS2, NOTE_D2, NOTE_DS2, NOTE_E2, NOTE_F2,
-  NOTE_FS2, NOTE_G2, NOTE_GS2, NOTE_A2, NOTE_AS2, NOTE_B2,
-  //
+  /*
+   * Not supported by PLAY command.
+   */
+  //NOTE_C2, NOTE_CS2, NOTE_D2, NOTE_DS2, NOTE_E2, NOTE_F2,
+  //NOTE_FS2, NOTE_G2, NOTE_GS2, NOTE_A2, NOTE_AS2, NOTE_B2,
+  /*
+   * Octave 1:
+   */
   NOTE_C3, NOTE_CS3, NOTE_D3, NOTE_DS3, NOTE_E3, NOTE_F3,
   NOTE_FS3, NOTE_G3, NOTE_GS3, NOTE_A3, NOTE_AS3, NOTE_B3,
-  //
+  /*
+   * Octave 2 - Middle C is C4.
+   */
   NOTE_C4, NOTE_CS4, NOTE_D4, NOTE_DS4, NOTE_E4, NOTE_F4,
   NOTE_FS4, NOTE_G4, NOTE_GS4, NOTE_A4, NOTE_AS4, NOTE_B4,
-  //
+  /*
+   * Octave 3:
+   */
   NOTE_C5, NOTE_CS5, NOTE_D5, NOTE_DS5, NOTE_E5, NOTE_F5,
   NOTE_FS5, NOTE_G5, NOTE_GS5, NOTE_A5, NOTE_AS5, NOTE_B5,
-  //
+  /*
+   * Octave 4:
+   */
   NOTE_C6, NOTE_CS6, NOTE_D6, NOTE_DS6, NOTE_E6, NOTE_F6,
   NOTE_FS6, NOTE_G6, NOTE_GS6, NOTE_A6, NOTE_AS6, NOTE_B6,
-  //
+  /*
+   * Octave 5:
+   */
   NOTE_C7, NOTE_CS7, NOTE_D7, NOTE_DS7, NOTE_E7, NOTE_F7,
   NOTE_FS7, NOTE_G7, NOTE_GS7, NOTE_A7, NOTE_AS7, NOTE_B7,
-  //
-  NOTE_C8, NOTE_CS8, NOTE_D8, NOTE_DS8
+  /*
+   * Last few notes Arduino can produce:
+   */
+  //NOTE_C8, NOTE_CS8, NOTE_D8, NOTE_DS8
 };
 
-void PlayNote(int note, unsigned long duration)
+
+/*
+ * PlayNode()
+ * 
+ * Play the frequency for the specified note number.
+ */
+void PlayNote(byte note, unsigned long duration)
 {
-  Serial.print("PlayNote(");
+  /*
+  Serial.print(F("PlayNote("));
   Serial.print(note);
-  Serial.print(", ");
+  Serial.print(F(", "));
   Serial.print(duration);
-  Serial.print(") -> ");
-  duration = duration * 100;
-  Serial.print("tone(");
-  Serial.print(TONE_PIN);
-  Serial.print(", ");
-  Serial.print(g_ToneTable[note]);
-  Serial.print(", ");
-  Serial.print(duration);
-  Serial.println(")");
+  Serial.println(F(")"));
+  */
+  
+  if (note >= sizeof(g_ToneTable)/sizeof(g_ToneTable[0]))
+  {
+    Serial.print(F("Invalid note: "));
+    Serial.println(note);
+    return;
+  }
+
   tone(TONE_PIN, g_ToneTable[note], duration);
+
   delay(duration);
+  
   noTone(TONE_PIN);
 }
+
+
+/*
+void showit()
+{
+  Serial.print("sizeof(g_ToneTable) = ");
+  Serial.println(sizeof(g_ToneTable)/sizeof(g_ToneTable[0]));
+}
+*/
 
 // End of TonePlayer
 

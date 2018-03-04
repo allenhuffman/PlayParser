@@ -11,6 +11,57 @@
  2018-02-20 0.00 allenh - Project began.
  2018-02-28 0.00 allenh - Initial framework.
  2018-03-02 0.00 allenh - More work on PLAY and its options.
+
+ NOTE
+ ----
+ N (optional) followed by a letter from "A" to "G" or a number from 1 to 12.
+ When using letters, they can be optionally followed by "#" or "+" to make it
+ as sharp, or "-" to make it flat.
+
+        C  C# D  D# E  F  F# G  G# A  A# B  (sharps)
+        1  2  3  4  5  6  7  8  9  10 11 12
+        C  D- D  E- E  F  G- G  A- A  B- B  (flats)
+
+ Due to how the original PLAY command was coded by Microsoft, it also allows
+ sharps and flats that would normally not be allowed. For instance, E# is the
+ same as F, and F- is the same a E. Since notes are numbered 1-12, the code
+ did not allow C- or B#. This quirk is replicated in this implementation.
+
+ OCTAVE
+ ======
+ "O" followed by a number from 1 to 5. Default is octave 2, which includes
+ middle C.
+
+ LENGTH
+ ======
+ "L" followed by a number from 1 to 255, with an optional "." after it to
+ add an additional 1/2 of the specified length. i.e., L4 is a quarter note,
+ L4. is like L4+L8 (dotted quarter note). Default is 2.
+
+ L1 - whole note
+ L2 - 1/2 half node
+ L3 - dotted quarter note (L4.)
+ L4 - 1/4 quarter note
+ L8 - 1/8 eighth note
+ L16 - 1/16 note
+ L32 - 1/32 note
+ L64 - 1/64 note
+
+ TEMPO
+ =====
+ "T" followed by a number from 1-255. Default is 2.
+
+ VOLUME
+ ======
+ "V" followed by a number from 1-31. Default is 15.
+
+ PAUSE
+ "P" followed by a number from 1-255.
+
+ SUBSTRINGS
+ ==========
+ To be documented, since we will need a special method to load
+ them befoe we can use them.
  
  -----------------------------------------------------------------------------*/
 #define VERSION "0.00"
@@ -36,7 +87,7 @@ const byte g_NoteJumpTable[7] =
 
 byte g_Octave = 3;  // Octave (1-5, default 3)
 byte g_Volume = 15; // Volume (1-31, default 15)
-byte g_NoteLn = 5;  // Note Length (default 5)
+byte g_NoteLn = 4;  // Note Length (1-255, default 4) - quarter note
 byte g_Tempo  = 2;  // Tempo (1-255, default 2)
 byte g_DotVal = 0;  // Dot Value
 
@@ -49,21 +100,47 @@ void setup() {
   char *string;
 
   Serial.begin(9600);
+  Serial.println();
   Serial.println(F("PlayParser Test."));
 
-  string = (char*)"ABCDEFG";
-  Serial.print((unsigned int)string);
-  Serial.print(" - ");
-  Serial.println(string);
-  play(string);
+  // Test the notes.
+  //PlayNote(0, 1000);
+  //PlayNote(59, 1000);
+  //PlayNote(60, 1000); // this should error
 
+  // Example from the Extended Color BASIC manual.
+  /*
+  play("T5;C;E;F;L1;G;P4;L4;C;E;F;L1;G");
+  play("P4;L4;C;E;F;L2;G;E;C;E;L1;D");
+  play("P8;L4;E;E;D;L2.;C;L4;C;L2;E");
+  play("L4;G;G;G;L1;F;L4;E;F");
+  play("L2;G;E;L4;C;L8;D;D+;D;E;G;L4;A;L1;O3;C");
+  */
+  Serial.println(F("Octave parsing:"));
+  play("O1 C O5 C O2 C O3 C O4 C");
+  delay(1000);
+  
+  Serial.println(F("Numeric notes."));
+  play("1;2;3;4;5;6;7;8;9;10;11;12");
   delay(2000);
 
-  string = (char*)"CDEFGAB";
-  Serial.print((unsigned int)string);
-  Serial.print(" - ");
-  Serial.println(string);
-  play(string);
+  exit(0);
+
+  Serial.println(F("Normal notes."));
+  play("CDEFGAB");
+  delay(2000);
+
+  Serial.println(F("Sharps using #."));
+  play("CC#DD#EFF#GG#AA#B");
+  delay(2000);
+
+  Serial.println(F("Sharps using +."));
+  play("CC+DD+EFF+GG+AA+B");
+  delay(2000);
+
+  Serial.println(F("Flats."));
+  play("CD-DE-EFG-GA-AB-B");
+  delay(2000);  
 
 } // end of setup()
 
@@ -87,14 +164,14 @@ void play(const char *playString)
   byte    value;
   byte    note;
 
+  Serial.print(F("play(\""));
+  Serial.print(playString);
+  Serial.println(F("\")"));
+
   if (playString == NULL) return;
 
   // Get pointer to play string.
   commandPtr = (char*)playString;
-
-  //Serial.print("play(");
-  //Serial.print((unsigned int)commandPtr);
-  //Serial.println(")");
 
   done = false;
   do
@@ -104,21 +181,9 @@ void play(const char *playString)
     // * GET NEXT COMMAND - RETURN VALUE IN ACCA
     commandChar = getNextCommand(&commandPtr);
 
-    //Serial.print("parsing ");
-    //Serial.print(commandChar);
-    //Serial.print(": ");
-
-    //Serial.print( (unsigned int)commandPtr);
-    //Serial.print(" = ");
-    //Serial.println( commandChar );
-
-    //Serial.print("switch(");
-    //Serial.print(commandChar);
-    //Serial.println(")");
     switch( commandChar )
     {
       case '\0':
-        Serial.println("done.");
         done = true;
         break;
 
@@ -126,12 +191,14 @@ void play(const char *playString)
       // SUB COMMAND TERMINATED
       case ';':
         // IGNORE SEMICOLONS
+        Serial.print(F(" ; "));
         break;
         
       // 9A4E - '
       // CHECK FOR APOSTROPHE
       case '\'':
         // IGNORE THEM TOO
+        Serial.print(F(" ' "));
         break;
 
       // 9A52
@@ -139,6 +206,7 @@ void play(const char *playString)
       case 'X':
         // X - sub-string (x$; or xx$;)
         // process substring
+        Serial.print(F(" X "));
         break;
 
       // CHECK FOR OTHER COMMANDS
@@ -151,6 +219,8 @@ void play(const char *playString)
         value = checkModifier(&commandPtr, g_Octave);
         if (value >=1 && value <= 5)
         {
+          Serial.print(F(" O"));
+          Serial.print(value);
           g_Octave = value;
         }
         else
@@ -167,6 +237,8 @@ void play(const char *playString)
         value = checkModifier(&commandPtr, g_Volume);
         if (value >=1 && value <= 31)
         {
+          Serial.print(F(" V"));
+          Serial.print(value);
           g_Volume = value;
         }
         else
@@ -183,6 +255,8 @@ void play(const char *playString)
         value = checkModifier(&commandPtr, g_NoteLn);
         if (value > 0 )
         {
+          Serial.print(F(" L"));
+          Serial.print(value);
           g_NoteLn = value;
         }
         else
@@ -203,6 +277,8 @@ void play(const char *playString)
         value = checkModifier(&commandPtr, g_Tempo);
         if (value > 0)
         {
+          Serial.print(F(" T"));
+          Serial.print(value);
           g_Tempo = value;
         }
         else
@@ -215,13 +291,23 @@ void play(const char *playString)
       // L9AC3
       case 'P':
         //  P - pause (1-255)
-        // get value
-        // pause for that amount?
+        value = checkForVariableOrNumeric(&commandPtr, commandChar);
+        if (value > 0)
+        {
+          Serial.print(F(" P"));
+          Serial.print(value);
+        }
+        else
+        {
+          value = 0; // ?FC ERROR
+          done = true;
+        }
         break;
 
       // L9AEB
       case 'N':
         //  N - note (optional)
+        Serial.print(F(" N"));
         // Get next command character.
         commandChar = getNextCommand(&commandPtr);
         // Done if there is no more.
@@ -239,12 +325,15 @@ void play(const char *playString)
         // (A-G, 1-12)
         //    A-G
         note = 0;
-        if (commandChar >= 'A' || commandChar <= 'G')
+        if (commandChar >= 'A' && commandChar <= 'G')
         {
           //Serial.print("A-G ");
           // Get numeric note value of letter note. (0-11)
           note = g_NoteJumpTable[commandChar - 'A'];
           // note is now 1-12
+
+          Serial.print(F(" "));
+          Serial.print(note);
           
           // Check for sharp/flat character.
           commandChar = getNextCommand(&commandPtr);
@@ -260,28 +349,21 @@ void play(const char *playString)
           //      + - sharp
           if (commandChar == '#' || commandChar == '+') // Sharp
           {
+            Serial.print(F("#"));
             note++; // Add one to note number (charp)
           }
           else if (commandChar == '-') // Flat
           {
-            //      - - flat
+            Serial.print(F("-"));
             note--;
           }
           else
           {
-            //Serial.print("not # + or -: ");
-            //Serial.print(commandChar);
-            // Put it back.
-            //Serial.print("  ptr:");
-            //Serial.print((unsigned int)commandPtr);
             *(commandPtr--);
-            //Serial.print(" -> ");
-            //Serial.println((unsigned int)commandPtr);
           }
         }
-        else // not A-G
+        else // NOT A-G, check for 1-12
         {
-          Serial.println("checking for number");
           // L9BBE - Evaluate decimal expression in command string.
           // Jump to cmp '=' thing in modifier!
           note = checkForVariableOrNumeric(&commandPtr, commandChar);
@@ -290,6 +372,8 @@ void play(const char *playString)
             value = 0; // ?FC ERROR
             break;
           }
+          //Serial.print(F(" n"));
+          Serial.print(note);
         }
         
         // L9B22 - Process note value.
@@ -306,8 +390,21 @@ void play(const char *playString)
         /*--------------------------------------------------------*/
         // PROCESS NOTE HERE!
         /*--------------------------------------------------------*/
-        Serial.println(note);
-        PlayNote(note, g_NoteLn);
+        
+        // Convert tempo and length to milliseconds
+        unsigned long duration;
+
+        // create 60hz timing from Tempo and NoteLn (matching CoCo).
+        duration = (256/g_NoteLn/g_Tempo);
+
+        // Convert to 60/second
+        // tm/60 = ms/1000
+        // ms=(tm/60)*1000
+        // no floating point needed this way
+        // (tm*1000)/60
+        duration = (duration*1000)/60;
+
+        PlayNote(note, duration);
         
         break;
         
@@ -317,9 +414,11 @@ void play(const char *playString)
 
   if (value == 0)
   {
+    Serial.println();
     Serial.println(F("?FC ERROR"));
   }
 
+  Serial.println();
   Serial.println(F("End."));
 } // end of play()
 
@@ -455,7 +554,7 @@ byte checkModifier(char **ptr, byte value)
 
 byte checkForVariableOrNumeric(char **ptr, char commandChar)
 {
-  byte      value;
+  byte      value = 0;
   uint16_t  temp; // MUL A*B = D
 
   switch( commandChar )
@@ -466,14 +565,16 @@ byte checkForVariableOrNumeric(char **ptr, char commandChar)
     case '=':
       // "=XX;" - value = whatever XX is set to.
       // Skip until semicolon or end of string.
+      Serial.print(F("(skip =xx;)"));
       do
       {
         commandChar = getNextCommand(ptr);
+        
         if (commandChar == '\0') break;
         
       } while( commandChar != ';' );
       
-      value = 0; // ?FC ERROR since we do not support this year.
+      value = 0; // ?FC ERROR since we do not support this yet.
       break;
   
     // Else, check for numeric string.
@@ -483,21 +584,23 @@ byte checkForVariableOrNumeric(char **ptr, char commandChar)
       do
       {
         // Stop at a non-numeric character.
-        if ( isdigit(commandChar) == 0) // not digit
+        if ( !isdigit(commandChar) ) // not digit
         {
           // Rewind so we end up where we started.
           (*ptr)--;
           break;
         }
+
+        // If here, it must be a digit, 0-9
   
         // Base 10. First time it will be 0 * 10.
         temp = temp * 10;
         // Convert ASCII number to value.
         temp = temp + (commandChar - '0');
-  
-        if (temp>255)
+
+        if (temp > 255)
         {
-          // In BASIC we would ?FC ERROR.
+/*
           // Skip past numbers.
           do
           {
@@ -508,10 +611,12 @@ byte checkForVariableOrNumeric(char **ptr, char commandChar)
           // Rewind
           (*ptr)--;
           temp = 0;
+*/
+          value = 0; // ?FC ERROR since we do not support this yet.
           break;
         }
         // Get another command byte.
-        commandChar = getNextCommand(ptr);  
+        commandChar = getNextCommand(ptr);
       } while( commandChar != '\0' );
   
       value = temp;

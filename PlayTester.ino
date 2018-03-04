@@ -44,8 +44,48 @@ void loop() {
     play(buffer);
   }
 
-  // Example from the Extended Color BASIC manual.
-  play("T2"); // default. TODO: Need a reset.
+  Serial.println(F("Volume (not implemented):"));
+  play("Z");
+  play("V1 C V5 C V10 C V15 C V20 C V25 C V31 C");
+  delay(2000);
+  
+  Serial.println(F("Length test:"));
+  play("Z"); // Reset
+  play("L1 CDEF L2 CDEF L4 CDEF L8 CDEF L16 CDEF");
+  delay(2000);
+
+  Serial.println(F("Octave parsing:"));
+  play("Z"); // Reset
+  play("O1 C O2 C O3 C O4 C O5 C O4 C O3 C O2 C O1 C");
+  delay(2000);
+  
+  Serial.println(F("Numeric notes."));
+  play("Z"); // Reset
+  play("1;2;3;4;5;6;7;8;9;10;11;12");
+  delay(2000);
+
+  Serial.println(F("Normal notes."));
+  play("Z"); // Reset
+  play("CDEFGAB");
+  delay(2000);
+
+  Serial.println(F("Sharps using #."));
+  play("Z"); // Reset
+  play("CC#DD#EFF#GG#AA#B");
+  delay(2000);
+
+  Serial.println(F("Sharps using +."));
+  play("Z"); // Reset
+  play("CC+DD+EFF+GG+AA+B");
+  delay(2000);
+
+  Serial.println(F("Flats."));
+  play("Z"); // Reset
+  play("CD-DE-EFG-GA-AB-B");
+  delay(2000);  
+  
+  Serial.println(F("Example from the Extended Color BASIC manual."));
+  play("Z"); // Reset
   play("T5;C;E;F;L1;G;P4;L4;C;E;F;L1;G");
   play("P4;L4;C;E;F;L2;G;E;C;E;L1;D");
   play("P8;L4;E;E;D;L2.;C;L4;C;L2;E");
@@ -67,7 +107,8 @@ void loop() {
 1070 PRINT@298,"GAIL POLLOCK"
 1080 PRINT@357,"PRESS ANY KEY TO BEGIN"
 */
-  play("T2"); // default. TODO: Need a reset.
+  Serial.println(F("Sinfonia (Bach) arranged for CoCo by Tommy & Gail Pollok"));
+  play("Z"); // Reset
   play("O2L8CO5L16CO4BO5L8CO4GEGL16CDCO3BO4L8CO3GEGL16CGDGEGFGEGDGCO4CO3BAGO4CO3BAGFEDCGDGEGFGEGDGCO4CO3BAGO4CO3BAGFEDCDEFGABO4CDEFDEGCDEFGABO5CO4ABO5CO4GFGEGFGEGDG");
   play("CO5CO4BAGCACGCFC EGDGEGFGEGDGCO5CO4BAGCACGCFC EO3CO4CO3CBCO4CO3");
   play("CO4DO3CBC O4CO3CO4EO3CO4DO3CO4EO3CO4FO3CO4DO3C O4ECO3CO4CO2BO4CO3CO4CO3DO4CO2BO4C O3CO4CO3EO4CO3DO4CO3EO4CO3F");
@@ -78,34 +119,6 @@ void loop() {
   play("L2O4FL16FEFD ECEGO5CO4GECP16O4GO5CO4B");
   play("L4O5CO4L2G L8GL16FEL2F L8FL16EDL4EL16ECO3GO4C O3FO4CDCO3BGBO4CDO3GO4DE L4.FL8GL4E L16EFEL32FDL32DEDEDEDEDEDEDEDEL4.DL8C L16CO5CO4BAGO5CO4FO5CO4EO5CO4DO5C O4CO5CO4BAGCFCECDC P16O3EGBO4CEGBL4O5C");
   delay(2000);
-
-  Serial.println(F("Length test:"));
-  play("L1 CDC L2 CDC L4 CDC L8 CDC L16 CDC");
-  delay(2000);
-
-  Serial.println(F("Octave parsing:"));
-  play("O1 C O2 C O3 C O4 C O5 C O2");
-  delay(2000);
-  
-  Serial.println(F("Numeric notes."));
-  play("1;2;3;4;5;6;7;8;9;10;11;12");
-  delay(2000);
-
-  Serial.println(F("Normal notes."));
-  play("CDEFGAB");
-  delay(2000);
-
-  Serial.println(F("Sharps using #."));
-  play("CC#DD#EFF#GG#AA#B");
-  delay(2000);
-
-  Serial.println(F("Sharps using +."));
-  play("CC+DD+EFF+GG+AA+B");
-  delay(2000);
-
-  Serial.println(F("Flats."));
-  play("CD-DE-EFG-GA-AB-B");
-  delay(2000);  
 }
 
 /*---------------------------------------------------------------------------*/

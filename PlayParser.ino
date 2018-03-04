@@ -72,6 +72,11 @@ SUBSTRINGS
 ----------
 To be documented, since we will need a special method to load them befoe
 we can use them.
+
+Non-Standard Extensions
+-----------------------
+"Z" to reset back to default settings.
+
 */
 /*---------------------------------------------------------------------------*/
 
@@ -104,11 +109,16 @@ const byte g_NoteJumpTable[7] PROGMEM =
 /*---------------------------------------------------------------------------*/
 // GLOBALS
 /*---------------------------------------------------------------------------*/
+// Used for resetting defaults later, too.
+#define DEFAULT_OCTAVE 2
+#define DEFAULT_VOLUME 15
+#define DEFAULT_NOTELN 4
+#define DEFAULT_TEMPO  2
 
-byte g_Octave = 2;  // Octave (1-5, default 2)
-byte g_Volume = 15; // Volume (1-31, default 15)
-byte g_NoteLn = 4;  // Note Length (1-255, default 4) - quarter note
-byte g_Tempo  = 2;  // Tempo (1-255, default 2)
+byte g_Octave = DEFAULT_OCTAVE; // Octave (1-5, default 2)
+byte g_Volume = DEFAULT_VOLUME; // Volume (1-31, default 15)
+byte g_NoteLn = DEFAULT_NOTELN; // Note Length (1-255, default 4) - quarter note
+byte g_Tempo  = DEFAULT_TEMPO;  // Tempo (1-255, default 2)
 
 /*---------------------------------------------------------------------------*/
 
@@ -323,6 +333,17 @@ void play(const char *playString)
           done = true;
         }
         break;
+
+      /*-----------------------------------------------------*/
+      // Non-standard PLAY extensions:
+      case 'Z': // reset
+        DEBUG_PRINT(F(" Z [Defaults]"));
+        g_Octave = DEFAULT_OCTAVE; // Octave (1-5, default 2)
+        g_Volume = DEFAULT_VOLUME; // Volume (1-31, default 15)
+        g_NoteLn = DEFAULT_NOTELN; // Note Length (1-255, default 4) - quarter note
+        g_Tempo  = DEFAULT_TEMPO;  // Tempo (1-255, default 2)
+        break;
+      /*-----------------------------------------------------*/
 
       // L9AEB
       case 'N':

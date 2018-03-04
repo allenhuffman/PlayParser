@@ -85,7 +85,7 @@ const byte g_NoteJumpTable[7] =
 // GLOBALS
 /*---------------------------------------------------------------------------*/
 
-byte g_Octave = 3;  // Octave (1-5, default 3)
+byte g_Octave = 2;  // Octave (1-5, default 2)
 byte g_Volume = 15; // Volume (1-31, default 15)
 byte g_NoteLn = 4;  // Note Length (1-255, default 4) - quarter note
 byte g_Tempo  = 2;  // Tempo (1-255, default 2)
@@ -109,15 +109,16 @@ void setup() {
   //PlayNote(60, 1000); // this should error
 
   // Example from the Extended Color BASIC manual.
-  /*
+
   play("T5;C;E;F;L1;G;P4;L4;C;E;F;L1;G");
   play("P4;L4;C;E;F;L2;G;E;C;E;L1;D");
   play("P8;L4;E;E;D;L2.;C;L4;C;L2;E");
   play("L4;G;G;G;L1;F;L4;E;F");
   play("L2;G;E;L4;C;L8;D;D+;D;E;G;L4;A;L1;O3;C");
-  */
+
+exit(0);
   Serial.println(F("Octave parsing:"));
-  play("O1 C O5 C O2 C O3 C O4 C");
+  play("O1 C O2 C O3 C O4 C O5 C O2");
   delay(1000);
   
   Serial.println(F("Numeric notes."));
@@ -163,6 +164,7 @@ void play(const char *playString)
   bool    done;
   byte    value;
   byte    note;
+  byte    dotVal;
 
   Serial.print(F("play(\""));
   Serial.print(playString);
@@ -264,10 +266,30 @@ void play(const char *playString)
           value = 0; // ?FC ERROR
           done = true;
         }
-        //    . - dotted node
-        // DotVal = 0
-        // Can we keep adding dotted nodes?
-        // DotVal++
+        //    . - dotted note
+        dotVal = 0;
+        while(1)
+        {
+          commandChar = getNextCommand(&commandPtr);
+          // Done if there is no more.
+          if (commandChar == '\0')
+          {
+            value = 0; // ?FC ERROR
+            done = true;
+            break;
+          }
+          else if (commandChar == '.')
+          {
+            Serial.print(F("."));
+            dotVal++;
+          }
+          else // Not a dot.
+          {
+            // Not a dot. Put it back.
+            *(commandPtr--);
+            break;
+          }
+        }
         break;
         
       // L9AB2
@@ -291,6 +313,15 @@ void play(const char *playString)
       // L9AC3
       case 'P':
         //  P - pause (1-255)
+        commandChar = getNextCommand(&commandPtr);
+        // Done if there is no more.
+        if (commandChar == '\0')
+        {
+          value = 0; // ?FC ERROR
+          done = true;
+          break;
+        }
+        
         value = checkForVariableOrNumeric(&commandPtr, commandChar);
         if (value > 0)
         {
@@ -392,10 +423,23 @@ void play(const char *playString)
         /*--------------------------------------------------------*/
         
         // Convert tempo and length to milliseconds
-        unsigned long duration;
+        unsigned long duration, dotDuration;
 
-        // create 60hz timing from Tempo and NoteLn (matching CoCo).
+        // Create 60hz timing from Tempo and NoteLn (matching CoCo).
         duration = (256/g_NoteLn/g_Tempo);
+
+        if (dotVal != 0)
+        {
+          dotDuration = (duration / 2 );
+
+          while(dotVal > 0)
+          {
+            duration = duration + dotDuration;
+            dotVal--;
+          }
+        }
+        
+        // Add on dotted notes.
 
         // Convert to 60/second
         // tm/60 = ms/1000
@@ -403,8 +447,8 @@ void play(const char *playString)
         // no floating point needed this way
         // (tm*1000)/60
         duration = (duration*1000)/60;
-
-        PlayNote(note, duration);
+        
+        PlayNote(note+(12*(g_Octave-1)), duration);
         
         break;
         

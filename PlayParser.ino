@@ -106,6 +106,9 @@ const byte g_NoteJumpTable[7] PROGMEM =
   /**/10, 12, 1, 3, 5, 6, 8 
 };
 
+#define STRINGTYPE_RAM   0
+#define STRINGTYPE_FLASH 1
+
 /*---------------------------------------------------------------------------*/
 // GLOBALS
 /*---------------------------------------------------------------------------*/
@@ -125,25 +128,37 @@ byte g_Tempo  = DEFAULT_TEMPO;  // Tempo (1-255, default 2)
 /*
  * play()
  */
-//void play(const __FlashStringHelper *playString)
+void play(const __FlashStringHelper *playString)
+{
+  unsigned int address = (unsigned int)playString;
+
+  DEBUG_PRINT(F("play(F(\""));
+  DEBUG_PRINT(playString);
+  DEBUG_PRINTLN(F("\"))"));
+
+  playWorker(address, STRINGTYPE_FLASH);
+}
 
 void play(const char *playString)
 {
-  char    *commandPtr;
+  unsigned int address = (unsigned int)playString;
+
+  DEBUG_PRINT(F("play(\""));
+  DEBUG_PRINT(playString);
+  DEBUG_PRINTLN(F("\")"));
+
+  playWorker(address, STRINGTYPE_RAM);
+}
+
+void playWorker(unsigned int commandPtr, byte stringType)
+{
   char    commandChar;
   bool    done;
   byte    value;
   byte    note;
   byte    dotVal;
 
-  DEBUG_PRINT(F("play(\""));
-  DEBUG_PRINT(playString);
-  DEBUG_PRINTLN(F("\")"));
-
-  if (playString == NULL) return;
-
-  // Get pointer to play string.
-  commandPtr = (char*)playString;
+  if (commandPtr == 0) return;
 
   done = false;
   value = 0; // force ?FC ERROR
@@ -152,9 +167,9 @@ void play(const char *playString)
     // L9A43
     // L9B98
     // * GET NEXT COMMAND - RETURN VALUE IN ACCA
-    commandChar = getNextCommand(&commandPtr);
+    commandChar = getNextCommand(&commandPtr, stringType);
 
-    dotVal = 0; // Reset dotted value, just in case.
+    dotVal = 0; // Start out with no dotted value.
     switch( commandChar )
     {
       case '\0':
@@ -185,7 +200,7 @@ void play(const char *playString)
         // Skip until semicolon or end of string.
         do
         {
-          commandChar = getNextCommand(&commandPtr);
+          commandChar = getNextCommand(&commandPtr, stringType);
           
           if (commandChar == '\0') break;
   
@@ -205,7 +220,7 @@ void play(const char *playString)
         DEBUG_PRINT(F(" O"));
         // O - octave (1-5, default 2)
         //    Modifiers
-        value = checkModifier(&commandPtr, g_Octave);
+        value = checkModifier(&commandPtr, stringType, g_Octave);
         if (value >=1 && value <= 5)
         {
           DEBUG_PRINT(value);
@@ -223,7 +238,7 @@ void play(const char *playString)
         //  V - volume (1-31, default 15)
         DEBUG_PRINT(F(" V"));
         //    Mofifiers
-        value = checkModifier(&commandPtr, g_Volume);
+        value = checkModifier(&commandPtr, stringType, g_Volume);
         if (value >=1 && value <= 31)
         {
           DEBUG_PRINT(value);
@@ -241,7 +256,7 @@ void play(const char *playString)
         //  L - note length
         DEBUG_PRINT(F(" L"));
         //    Modifiers
-        value = checkModifier(&commandPtr, g_NoteLn);
+        value = checkModifier(&commandPtr, stringType, g_NoteLn);
         if (value > 0 )
         {
           DEBUG_PRINT(value);
@@ -257,7 +272,7 @@ void play(const char *playString)
         dotVal = 0;
         while(1)
         {
-          commandChar = getNextCommand(&commandPtr);
+          commandChar = getNextCommand(&commandPtr, stringType);
           // Done if there is no more.
           if (commandChar == '\0')
           {
@@ -284,7 +299,7 @@ void play(const char *playString)
         //  T - tempo (1-255, default 2)
         DEBUG_PRINT(F(" T"));
         //    Modifiers
-        value = checkModifier(&commandPtr, g_Tempo);
+        value = checkModifier(&commandPtr, stringType, g_Tempo);
         if (value > 0)
         {
           DEBUG_PRINT(value);
@@ -302,7 +317,7 @@ void play(const char *playString)
         //  P - pause (1-255)
         DEBUG_PRINT(F(" P"));
 
-        commandChar = getNextCommand(&commandPtr);
+        commandChar = getNextCommand(&commandPtr, stringType);
         // Done if there is no more.
         if (commandChar == '\0')
         {
@@ -312,7 +327,7 @@ void play(const char *playString)
         }
 
         // since =var; is not supported, we default to note length
-        value = checkForVariableOrNumeric(&commandPtr, commandChar, g_NoteLn);
+        value = checkForVariableOrNumeric(&commandPtr, stringType, commandChar, g_NoteLn);
         if (value > 0)
         {
           DEBUG_PRINT(value);
@@ -353,7 +368,7 @@ void play(const char *playString)
         //  N - note (optional)
         DEBUG_PRINT(F(" N"));
         // Get next command character.
-        commandChar = getNextCommand(&commandPtr);
+        commandChar = getNextCommand(&commandPtr, stringType);
         
         // Done if there is no more.
         if (commandChar == '\0')
@@ -381,7 +396,7 @@ void play(const char *playString)
           DEBUG_PRINT(commandChar);
           
           // Check for sharp/flat character.
-          commandChar = getNextCommand(&commandPtr);
+          commandChar = getNextCommand(&commandPtr, stringType);
           
           // Done if there is no more.
           if (commandChar == '\0')
@@ -413,7 +428,7 @@ void play(const char *playString)
         {
           // L9BBE - Evaluate decimal expression in command string.
           // Jump to cmp '=' thing in modifier!
-          note = checkForVariableOrNumeric(&commandPtr, commandChar, 0);
+          note = checkForVariableOrNumeric(&commandPtr, stringType, commandChar, 0);
           if (note == 0)
           {
             value = 0; // ?FC ERROR
@@ -489,7 +504,7 @@ void play(const char *playString)
  * Get Next Command
  */
 // L9B98
-char getNextCommand(char **ptr)
+char getNextCommand(unsigned int *ptr, byte stringType)
 {
   char commandChar;
 
@@ -497,7 +512,7 @@ char getNextCommand(char **ptr)
   //DEBUG_PRINT((unsigned int)*ptr);
   //DEBUG_PRINT(") - ");
   
-  if (ptr == NULL)
+  if (ptr == 0)
   {
     // Return nil character, and leave pointer alone.
     commandChar = '\0'; // NIL character
@@ -508,7 +523,16 @@ char getNextCommand(char **ptr)
     while(1)
     {
       // Get character at current position.
-      commandChar = *(*ptr);
+
+      if (stringType == STRINGTYPE_RAM)
+      {
+        char *p = (char*)*ptr;
+        commandChar = *p;
+      }
+      else
+      {
+        commandChar = pgm_read_byte_near(*ptr);
+      }
 
       if ( commandChar == '\0') break;
 
@@ -540,16 +564,19 @@ char getNextCommand(char **ptr)
 */
 
 // L9AC0 - JMP L9BAC
-byte checkModifier(char **ptr, byte value)
+byte checkModifier(unsigned int *ptr, byte stringType, byte value)
 {
   char      commandChar;
   
-  if ((ptr != NULL) && (*(*ptr) != '\0'))
+  if (ptr != 0)
   {
-    commandChar = getNextCommand(ptr);
+    commandChar = getNextCommand(ptr, stringType);
 
     switch( commandChar )
     {
+      case '\0':
+        break;
+        
       // ADD ONE?
       case '+':
         if (value < 255)
@@ -601,7 +628,7 @@ byte checkModifier(char **ptr, byte value)
       // Could be = or number, so we call a separate function since we
       // need this in the note routine as well.
       default:
-        value = checkForVariableOrNumeric(ptr, commandChar, value);
+        value = checkForVariableOrNumeric(ptr, stringType, commandChar, value);
         break;
         
     } // end of switch( commandChar )
@@ -613,7 +640,7 @@ byte checkModifier(char **ptr, byte value)
 
 /*---------------------------------------------------------------------------*/
 
-byte checkForVariableOrNumeric(char **ptr, char commandChar, byte value)
+byte checkForVariableOrNumeric(unsigned int *ptr, byte stringType, char commandChar, byte value)
 {
   //byte      value = 0;
   uint16_t  temp; // MUL A*B = D
@@ -630,7 +657,7 @@ byte checkForVariableOrNumeric(char **ptr, char commandChar, byte value)
       // Skip until semicolon or end of string.
       do
       {
-        commandChar = getNextCommand(ptr);
+        commandChar = getNextCommand(ptr, stringType);
         
         if (commandChar == '\0') break;
 
@@ -684,7 +711,7 @@ byte checkForVariableOrNumeric(char **ptr, char commandChar, byte value)
         }
         
         // Get another command byte.
-        commandChar = getNextCommand(ptr);
+        commandChar = getNextCommand(ptr, stringType);
         
       } while( commandChar != '\0' );
 

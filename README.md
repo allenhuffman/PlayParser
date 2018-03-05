@@ -74,13 +74,13 @@ did not allow C- or B#. This quirk is replicated in this implementation.
 OCTAVE
 ------
 "O" followed by a number from 1 to 5. Default is octave 2, which includes
-middle C.
+middle C. (Supports modifiers.)
 
 LENGTH
 ------
 "L" followed by a number from 1 to 255, with an optional "." after it to
 add an additional 1/2 of the specified length. i.e., L4 is a quarter note,
-L4. is like L4+L8 (dotted quarter note). Default is 2.
+L4. is like L4+L8 (dotted quarter note). Default is 2. (Supports modifiers.)
 
 * L1 - whole note
 * L2 - 1/2 half node
@@ -93,11 +93,12 @@ L4. is like L4+L8 (dotted quarter note). Default is 2.
 
 TEMPO
 -----
-"T" followed by a number from 1-255. Default is 2.
+"T" followed by a number from 1-255. Default is 2. (Supports modifiers.)
 
 VOLUME
 ------
-"V" followed by a number from 1-31. Default is 15. (Not supported on the Arduino.)
+"V" followed by a number from 1-31. Default is 15. (Supports modifiers.)
+(Does nothing on the Arduino.)
 
 PAUSE
 -----
@@ -115,6 +116,21 @@ Non-Standard Extensions
 * Volume (1-31, default 15)
 * Note Length (1-255, default 4) - quarter note
 * Tempo (1-255, default 2)
+
+MODIFIERS
+---------
+Many items that accept numbers can also use a modifier instead. The
+modifier will apply to whatever the last value was. Modifiers are:
+
+* "+" increase value by 1.
+* "-" decreate value by 1.
+* ">" double value.
+* "<" halve value.
+
+For instance, if the octave is currently 1 (O1), using "O+" will make it
+octave 2. If Tempo was currenlty 2 (T2), using "T>" would make it 4. If a
+modifier causes the value to go out of allowed range, the command will fail
+the same as if the out-of-range value was used.
 
 Sample Music
 ============

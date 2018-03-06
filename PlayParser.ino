@@ -13,6 +13,7 @@ Extended Color BASIC.
 2018-03-02 0.00 allenh - More work on PLAY and its options.
 2018-03-03 0.00 allenh - Most things seem to work now.
 2018-03-04 0.00 allenh - Supports Flash-strings. Tweaking debug output.
+2018-03-05 0.00 allenh - Fixed issue with dotted notes.
 
 TODO:
 * DONE: Data needs to be moved to PROGMEM.
@@ -177,6 +178,7 @@ void playWorker(unsigned int commandPtr, byte stringType)
 
   done = false;
   value = 0; // force ?FC ERROR
+  dotVal = 0; // Start out with no dotted value.
   do
   {
     // L9A43
@@ -184,7 +186,6 @@ void playWorker(unsigned int commandPtr, byte stringType)
     // * GET NEXT COMMAND - RETURN VALUE IN ACCA
     commandChar = getNextCommand(&commandPtr, stringType);
 
-    dotVal = 0; // Start out with no dotted value.
     switch( commandChar )
     {
       case '\0':
@@ -349,7 +350,7 @@ void playWorker(unsigned int commandPtr, byte stringType)
 
           unsigned long duration;
           // Create 60hz timing from Tempo and NoteLn (matching CoCo).
-          duration = (256/g_NoteLn/g_Tempo);
+          duration = (256/value/g_Tempo);
           
           // Convert to 60/second
           // tm/60 = ms/1000
@@ -358,7 +359,9 @@ void playWorker(unsigned int commandPtr, byte stringType)
           // (tm*1000)/60
           duration = (duration*1000)/60;
 
-          delay(duration);        
+          delay(duration);
+
+          dotVal = 0;
         }
         else
         {

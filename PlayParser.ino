@@ -1,3 +1,4 @@
+#define DEBUG_PLAYPARSER // enable debug output
 /*---------------------------------------------------------------------------*/
 /* 
 Sub-Etha Software's PLAY Parser
@@ -14,6 +15,7 @@ Extended Color BASIC.
 2018-03-03 0.00 allenh - Most things seem to work now.
 2018-03-04 0.00 allenh - Supports Flash-strings. Tweaking debug output.
 2018-03-05 0.00 allenh - Fixed issue with dotted notes.
+2018-03-11 1.00 allenh - Merging standalone player with SirSound player.
 
 TODO:
 * DONE: Data needs to be moved to PROGMEM.
@@ -22,6 +24,12 @@ TODO:
 * DONE: Add support for PROGMEM strings.
 * Set variable (2-digit name, numeric or string).
 * Use variables to support Xvar$; and =var; 
+
+TOFIX:
+* Dotted notes do not work like the real PLAY command, so really long notes
+  do not work. They will max out at a note length of 255 (60/sec) which is
+  4 seconds. Since only one byte is being used for the note length, anything
+  longer currently is not supported. But it could be, if it needs to be.
 
 NOTE
 ----
@@ -96,23 +104,22 @@ the same as if the out-of-range value was used.
 */
 /*---------------------------------------------------------------------------*/
 
-#define VERSION "0.00"
-
-#define DEBUG // enable debug output
+#define PLAYPARSER_VERSION "0.00"
 
 /*---------------------------------------------------------------------------*/
 // PROTOTYPES
 /*---------------------------------------------------------------------------*/
 
+
 /*---------------------------------------------------------------------------*/
 // DEFINES
 /*---------------------------------------------------------------------------*/
-#if defined(DEBUG)
-#define DEBUG_PRINT(s)    Serial.print(s)
-#define DEBUG_PRINTLN(s)  Serial.println(s)
+#if defined(DEBUG_PLAYPARSER)
+#define PLAYPARSER_PRINT(...)   Serial.print(__VA_ARGS__)
+#define PLAYPARSER_PRINTLN(...) Serial.println(__VA_ARGS__)
 #else
-#define DEBUG_PRINT(s)
-#define DEBUG_PRINTLN(s)
+#define PLAYPARSER_PRINT(...)
+#define PLAYPARSER_PRINTLN(...)
 #endif
 
 // 9C5B - Table of numerical note values for letter notes.
@@ -148,9 +155,9 @@ void play(const __FlashStringHelper *playString)
 {
   unsigned int address = (unsigned int)playString;
 
-  DEBUG_PRINT(F("play(F(\""));
-  DEBUG_PRINT(playString);
-  DEBUG_PRINTLN(F("\"))"));
+  PLAYPARSER_PRINT(F("play(F(\""));
+  PLAYPARSER_PRINT(playString);
+  PLAYPARSER_PRINTLN(F("\"))"));
 
   playWorker(address, STRINGTYPE_FLASH);
 }
@@ -159,9 +166,9 @@ void play(const char *playString)
 {
   unsigned int address = (unsigned int)playString;
 
-  DEBUG_PRINT(F("play(\""));
-  DEBUG_PRINT(playString);
-  DEBUG_PRINTLN(F("\")"));
+  PLAYPARSER_PRINT(F("play(\""));
+  PLAYPARSER_PRINT(playString);
+  PLAYPARSER_PRINTLN(F("\")"));
 
   playWorker(address, STRINGTYPE_RAM);
 }
@@ -173,6 +180,8 @@ void playWorker(unsigned int commandPtr, byte stringType)
   byte    value;
   byte    note;
   byte    dotVal;
+  byte    noteDuration;
+  byte    dotDuration;
 
   if (commandPtr == 0) return;
 
@@ -181,6 +190,11 @@ void playWorker(unsigned int commandPtr, byte stringType)
   dotVal = 0; // Start out with no dotted value.
   do
   {
+    #if defined(USE_SEQUENCER)
+    // Handle sequencer during parsing of long strings.
+    sequencerHandler();
+    #endif
+    
     // L9A43
     // L9B98
     // * GET NEXT COMMAND - RETURN VALUE IN ACCA
@@ -188,6 +202,9 @@ void playWorker(unsigned int commandPtr, byte stringType)
 
     switch( commandChar )
     {
+      case '\"': // ignore quotes for testing.
+        break;
+        
       case '\0':
         value = 1; // no error
         done = true;
@@ -197,21 +214,21 @@ void playWorker(unsigned int commandPtr, byte stringType)
       // SUB COMMAND TERMINATED
       case ';':
         // IGNORE SEMICOLONS
-        DEBUG_PRINT(F(" ;"));
+        PLAYPARSER_PRINT(F(" ;"));
         break;
         
       // 9A4E - '
       // CHECK FOR APOSTROPHE
       case '\'':
         // IGNORE THEM TOO
-        DEBUG_PRINT(F(" '"));
+        PLAYPARSER_PRINT(F(" '"));
         break;
 
       // 9A52
       // CHECK FOR AN EXECUTABLE SUBSTRING
       case 'X':
         // X - sub-string (x$; or xx$;)
-        DEBUG_PRINT(F(" (X")); // not supported
+        PLAYPARSER_PRINT(F(" (X")); // not supported
         // process substring
         // Skip until semicolon or end of string.
         do
@@ -220,11 +237,11 @@ void playWorker(unsigned int commandPtr, byte stringType)
           
           if (commandChar == '\0') break;
   
-          DEBUG_PRINT(commandChar);
+          PLAYPARSER_PRINT(commandChar);
           
         } while( commandChar != ';' );
 
-        DEBUG_PRINT(F(")")); // not supported
+        PLAYPARSER_PRINT(F(")")); // not supported
         
         break;
 
@@ -233,13 +250,13 @@ void playWorker(unsigned int commandPtr, byte stringType)
       // 9A5C
       case 'O':
         // // ADJUST OCTAVE?
-        DEBUG_PRINT(F(" O"));
+        PLAYPARSER_PRINT(F(" O"));
         // O - octave (1-5, default 2)
         //    Modifiers
         value = checkModifier(&commandPtr, stringType, g_Octave);
         if (value >=1 && value <= 5)
         {
-          DEBUG_PRINT(value);
+          PLAYPARSER_PRINT(value);
           g_Octave = value;
         }
         else
@@ -252,12 +269,12 @@ void playWorker(unsigned int commandPtr, byte stringType)
       // 9a6D
       case 'V':
         //  V - volume (1-31, default 15)
-        DEBUG_PRINT(F(" V"));
+        PLAYPARSER_PRINT(F(" V"));
         //    Mofifiers
         value = checkModifier(&commandPtr, stringType, g_Volume);
         if (value >=1 && value <= 31)
         {
-          DEBUG_PRINT(value);
+          PLAYPARSER_PRINT(value);
           g_Volume = value;
         }
         else
@@ -270,12 +287,12 @@ void playWorker(unsigned int commandPtr, byte stringType)
       // 9a8b
       case 'L':
         //  L - note length
-        DEBUG_PRINT(F(" L"));
+        PLAYPARSER_PRINT(F(" L"));
         //    Modifiers
         value = checkModifier(&commandPtr, stringType, g_NoteLn);
         if (value > 0 )
         {
-          DEBUG_PRINT(value);
+          PLAYPARSER_PRINT(value);
           g_NoteLn = value;
         }
         else
@@ -298,7 +315,7 @@ void playWorker(unsigned int commandPtr, byte stringType)
           }
           else if (commandChar == '.')
           {
-            DEBUG_PRINT(F("."));
+            PLAYPARSER_PRINT(F("."));
             dotVal++;
           }
           else // Not a dot.
@@ -313,12 +330,12 @@ void playWorker(unsigned int commandPtr, byte stringType)
       // L9AB2
       case 'T':
         //  T - tempo (1-255, default 2)
-        DEBUG_PRINT(F(" T"));
+        PLAYPARSER_PRINT(F(" T"));
         //    Modifiers
         value = checkModifier(&commandPtr, stringType, g_Tempo);
         if (value > 0)
         {
-          DEBUG_PRINT(value);
+          PLAYPARSER_PRINT(value);
           g_Tempo = value;
         }
         else
@@ -331,7 +348,7 @@ void playWorker(unsigned int commandPtr, byte stringType)
       // L9AC3
       case 'P':
         //  P - pause (1-255)
-        DEBUG_PRINT(F(" P"));
+        PLAYPARSER_PRINT(F(" P"));
 
         commandChar = getNextCommand(&commandPtr, stringType);
         // Done if there is no more.
@@ -346,22 +363,21 @@ void playWorker(unsigned int commandPtr, byte stringType)
         value = checkForVariableOrNumeric(&commandPtr, stringType, commandChar, g_NoteLn);
         if (value > 0)
         {
-          DEBUG_PRINT(value);
+          PLAYPARSER_PRINT(value);
 
-          unsigned long duration;
           // Create 60hz timing from Tempo and NoteLn (matching CoCo).
-          duration = (256/value/g_Tempo);
+          noteDuration = (255/value/g_Tempo);
           
+#if defined(USE_SEQUENCER)          
+          sequencerPut(0, REST, noteDuration);
+#else
           // Convert to 60/second
           // tm/60 = ms/1000
           // ms=(tm/60)*1000
           // no floating point needed this way
           // (tm*1000)/60
-          duration = (duration*1000)/60;
-
-          delay(duration);
-
-          dotVal = 0;
+          delay((noteDuration*1000L)/60L);
+#endif
         }
         else
         {
@@ -373,7 +389,7 @@ void playWorker(unsigned int commandPtr, byte stringType)
       /*-----------------------------------------------------*/
       // Non-standard PLAY extensions:
       case 'Z': // reset
-        DEBUG_PRINT(F(" Z [Defaults]"));
+        PLAYPARSER_PRINT(F(" Z [Defaults]"));
         g_Octave = DEFAULT_OCTAVE; // Octave (1-5, default 2)
         g_Volume = DEFAULT_VOLUME; // Volume (1-31, default 15)
         g_NoteLn = DEFAULT_NOTELN; // Note Length (1-255, default 4) - quarter note
@@ -384,7 +400,7 @@ void playWorker(unsigned int commandPtr, byte stringType)
       // L9AEB
       case 'N':
         //  N - note (optional)
-        DEBUG_PRINT(F(" N"));
+        PLAYPARSER_PRINT(F(" N"));
         // Get next command character.
         commandChar = getNextCommand(&commandPtr, stringType);
         
@@ -405,13 +421,13 @@ void playWorker(unsigned int commandPtr, byte stringType)
         note = 0;
         if (commandChar >= 'A' && commandChar <= 'G')
         {
-          //DEBUG_PRINT("A-G ");
+          //PLAYPARSER_PRINT("A-G ");
           // Get numeric note value of letter note. (0-11)
           note = pgm_read_byte_near(&g_NoteJumpTable[commandChar - 'A']);
           // note is now 1-12
 
-          DEBUG_PRINT(F(" "));
-          DEBUG_PRINT(commandChar);
+          PLAYPARSER_PRINT(F(" "));
+          PLAYPARSER_PRINT(commandChar);
           
           // Check for sharp/flat character.
           commandChar = getNextCommand(&commandPtr, stringType);
@@ -428,12 +444,12 @@ void playWorker(unsigned int commandPtr, byte stringType)
           //      + - sharp
           if (commandChar == '#' || commandChar == '+') // Sharp
           {
-            DEBUG_PRINT(commandChar);
+            PLAYPARSER_PRINT(commandChar);
             note++; // Add one to note number (charp)
           }
           else if (commandChar == '-') // Flat
           {
-            DEBUG_PRINT(commandChar);
+            PLAYPARSER_PRINT(commandChar);
             note--;
           }
           else
@@ -453,8 +469,8 @@ void playWorker(unsigned int commandPtr, byte stringType)
             done = true;
             break;
           }
-          DEBUG_PRINT(F(" "));
-          DEBUG_PRINT(note);
+          PLAYPARSER_PRINT(F(" "));
+          PLAYPARSER_PRINT(note);
         }
         
         // L9B22 - Process note value.
@@ -472,34 +488,43 @@ void playWorker(unsigned int commandPtr, byte stringType)
         // PROCESS NOTE HERE!
         /*--------------------------------------------------------*/
         
-        // Convert tempo and length to milliseconds
-        unsigned long duration, dotDuration;
+        // Convert tempo and length into note duration.
+        noteDuration = (255/g_NoteLn/g_Tempo);
 
-        // Create 60hz timing from Tempo and NoteLn (matching CoCo).
-        duration = (256/g_NoteLn/g_Tempo);
-
+        // Add on dotted notes.
         if (dotVal != 0)
         {
-          dotDuration = (duration / 2 );
+          dotDuration = (noteDuration / 2 );
 
-          while(dotVal > 0)
+          // Prevent note duration rollover since we currently do not
+          // support a duration larger than 255. Would it be better to
+          // just max out at 255 for the longest note possible?
+          while((dotVal > 0) && (noteDuration < (255-dotDuration)))
           {
-            duration = duration + dotDuration;
+            noteDuration = noteDuration + dotDuration;
             dotVal--;
           }
         }
         
-        // Add on dotted notes.
-
-        // Convert to 60/second
+#if defined(USE_SEQUENCER)
+        // Sequencer is based on 88-key piano keyboard. PLAY command
+        // starts at the 27th note on a piano keyboard, so we add
+        // that offset.
+        sequencerPut(0, 27+note+(12*(g_Octave-1)), noteDuration);
+#else
+        // Convert from 60/second to ms
         // tm/60 = ms/1000
         // ms=(tm/60)*1000
         // no floating point needed this way
         // (tm*1000)/60
-        duration = (duration*1000)/60;
+        unsigned long msDuration = ((noteDuration*1000L)/60L);
         
-        PlayNote(note+(12*(g_Octave-1)), duration);
-        
+        // TonePlayer is based on 88-key piano keyboard. PLAY command
+        // starts at the 27th note on a piano keyboard, so we add
+        // that offset.
+        tonePlayNote(27+note+(12*(g_Octave-1)), msDuration);
+        delay(msDuration);
+#endif
         break;
         
     } // end switch( commandChar );
@@ -508,12 +533,19 @@ void playWorker(unsigned int commandPtr, byte stringType)
 
   if (value == 0)
   {
-    DEBUG_PRINTLN();
-    DEBUG_PRINT(F("?FC ERROR"));
+    PLAYPARSER_PRINTLN();
+    PLAYPARSER_PRINT(F("?FC ERROR"));
   }
+#if defined(USE_SEQUENCER)
+  else
+  {
+    // End of PLAY string. Start playing.
+    sequencerStart();
+  }
+#endif
 
-  DEBUG_PRINTLN();
-  //DEBUG_PRINTLN(F("End."));
+  PLAYPARSER_PRINTLN();
+  //PLAYPARSER_PRINTLN(F("End."));
 } // end of play()
 
 /*---------------------------------------------------------------------------*/
@@ -526,9 +558,9 @@ char getNextCommand(unsigned int *ptr, byte stringType)
 {
   char commandChar;
 
-  //DEBUG_PRINT("getNextCommand(");
-  //DEBUG_PRINT((unsigned int)*ptr);
-  //DEBUG_PRINT(") - ");
+  //PLAYPARSER_PRINT("getNextCommand(");
+  //PLAYPARSER_PRINT((unsigned int)*ptr);
+  //PLAYPARSER_PRINT(") - ");
   
   if (ptr == 0)
   {
@@ -561,8 +593,8 @@ char getNextCommand(unsigned int *ptr, byte stringType)
     }
   }
 
-  //DEBUG_PRINT(" ... ");
-  //DEBUG_PRINTLN((unsigned int)*ptr);
+  //PLAYPARSER_PRINT(" ... ");
+  //PLAYPARSER_PRINTLN((unsigned int)*ptr);
 
   return commandChar;
 }
@@ -670,8 +702,8 @@ byte checkForVariableOrNumeric(unsigned int *ptr, byte stringType, char commandC
     // CHECK FOR VARIABLE EQUATE
     case '=':
       // "=XX;" - value = whatever XX is set to.
-      DEBUG_PRINT(F("(")); // not supported
-      DEBUG_PRINT(commandChar);
+      PLAYPARSER_PRINT(F("(")); // not supported
+      PLAYPARSER_PRINT(commandChar);
       // Skip until semicolon or end of string.
       do
       {
@@ -679,10 +711,10 @@ byte checkForVariableOrNumeric(unsigned int *ptr, byte stringType, char commandC
         
         if (commandChar == '\0') break;
 
-        DEBUG_PRINT(commandChar);
+        PLAYPARSER_PRINT(commandChar);
         
       } while( commandChar != ';' );
-      DEBUG_PRINT(F(")")); // not supported
+      PLAYPARSER_PRINT(F(")")); // not supported
       // Leave value unchanged, since we don't support it.
       
       //value = 0; // ?FC ERROR since we do not support this yet.
